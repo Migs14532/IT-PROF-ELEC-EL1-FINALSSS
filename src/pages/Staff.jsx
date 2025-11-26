@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import supabase from "../lib/supabase";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Plus} from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function Staff() {
@@ -106,9 +106,10 @@ export default function Staff() {
         </div>
         <button
           onClick={() => openModal()}
-          className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all font-semibold cursor-pointer"
+            className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all cursor-pointer font-semibold"
         >
-          Add Staff
+            <Plus size={20} />
+            Add Staff
         </button>
       </div>
 

@@ -1,31 +1,26 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const ai = new GoogleGenAI({});
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
-async function main() {
-  const chat = ai.chats.create({
-    model: "gemini-2.5-flash",
-    history: [
-      {
-        role: "user",
-        parts: [{ text: "Hello" }],
-      },
-      {
-        role: "model",
-        parts: [{ text: "Great to meet you. What would you like to know?" }],
-      },
-    ],
-  });
+let chatSession = null;
 
-  const response1 = await chat.sendMessage({
-    message: "I have 2 dogs in my house.",
-  });
-  console.log("Chat response 1:", response1.text);
+export async function sendMessageToGemini(message) {
+  try {
+    if (!chatSession) {
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.0-flash",
+      });
 
-  const response2 = await chat.sendMessage({
-    message: "How many paws are in my house?",
-  });
-  console.log("Chat response 2:", response2.text);
+      chatSession = model.startChat({
+        history: [],
+      });
+    }
+
+    const result = await chatSession.sendMessage(message);
+    return result.response.text();
+
+  } catch (err) {
+    console.error("Gemini API Error:", err.message);
+    return "⚠️ Sorry, I couldn't respond. Check your API key or internet connection.";
+  }
 }
-
-await main();

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Home,
   Users,
@@ -15,6 +15,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import supabase from "../lib/supabase";
 import toast from "react-hot-toast";
+import { sendMessageToGemini } from "../lib/ai";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -23,11 +24,7 @@ export default function Dashboard() {
     totalOrders: 0,
     completed: 0,
     pending: 0,
-    revenue: 0,
-    totalStaff: 0,
-    totalAdmins: 0,
   });
-
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -45,6 +42,21 @@ export default function Dashboard() {
   const [status, setStatus] = useState("Pending");
   const [total, setTotal] = useState(0);
 
+  // Chatbot states
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState([
+    { sender: "bot", text: "Hi! I'm Laundry Chatbot 🤖 How can I assist you today?" }
+  ]);
+  const [isTyping, setIsTyping] = useState(false);
+
+  const chatEndRef = useRef(null);
+
+  // Auto scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   // Fetch dashboard data
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -55,19 +67,10 @@ export default function Dashboard() {
         .order("created_at", { ascending: false });
       if (custErr) throw custErr;
 
-      const { data: staffList, error: staffErr } = await supabase.from("staff").select("*");
-      if (staffErr) throw staffErr;
-
-      const { data: adminList, error: adminErr } = await supabase.from("admin").select("*");
-      if (adminErr) throw adminErr;
-
       setStats({
         totalOrders: customers.length,
         completed: customers.filter((c) => c.status === "Completed").length,
         pending: customers.filter((c) => c.status === "Pending").length,
-        revenue: customers.reduce((sum, c) => sum + parseFloat(c.total || 0), 0),
-        totalStaff: staffList.length,
-        totalAdmins: adminList.length,
       });
 
       setRecentOrders(customers);
@@ -120,7 +123,6 @@ export default function Dashboard() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!name || !email || !service || !pickupDate || !pickupTime || !quantity) {
       return toast.error("All fields are required!");
     }
@@ -164,13 +166,12 @@ export default function Dashboard() {
       closeModal();
     } catch (err) {
       console.error(err);
-      toast.error("Failed to create order!");
+      toast.error("Failed to save order!");
     }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this order?")) return;
-
     try {
       const { error } = await supabase.from("customers").delete().eq("id", id);
       if (error) throw error;
@@ -182,9 +183,22 @@ export default function Dashboard() {
     }
   };
 
-  // Handle logout
   const handleLogout = () => {
-    navigate("/"); // redirect to Landing.jsx
+    navigate("/"); 
+  };
+
+  // Chat send
+  const handleSendMessage = async () => {
+    if (!chatInput.trim()) return;
+    const userMessage = chatInput;
+    setMessages((prev) => [...prev, { sender: "user", text: userMessage }]);
+    setChatInput("");
+    setIsTyping(true);
+
+    const aiReply = await sendMessageToGemini(userMessage);
+
+    setIsTyping(false);
+    setMessages((prev) => [...prev, { sender: "bot", text: aiReply }]);
   };
 
   return (
@@ -267,7 +281,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 shadow-xl text-white transform hover:scale-105 transition-all">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-medium opacity-90">Total Orders</h2>
+                    <h2 className="text-sm font-medium opacity-90">New Orders</h2>
                     <div className="bg-white/20 p-3 rounded-xl">
                       <ShoppingBag size={24} />
                     </div>
@@ -296,39 +310,6 @@ export default function Dashboard() {
                   </div>
                   <p className="text-4xl font-bold">{stats.completed}</p>
                   <p className="text-xs opacity-75 mt-2">Successfully finished</p>
-                </div>
-
-                <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-6 shadow-xl text-white transform hover:scale-105 transition-all">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-medium opacity-90">Revenue</h2>
-                    <div className="bg-white/20 p-3 rounded-xl">
-                      <DollarSign size={24} />
-                    </div>
-                  </div>
-                  <p className="text-4xl font-bold">₱{stats.revenue.toLocaleString()}</p>
-                  <p className="text-xs opacity-75 mt-2">Total earnings</p>
-                </div>
-
-                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 shadow-xl text-white transform hover:scale-105 transition-all">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-medium opacity-90">Staff</h2>
-                    <div className="bg-white/20 p-3 rounded-xl">
-                      <UserCog size={24} />
-                    </div>
-                  </div>
-                  <p className="text-4xl font-bold">{stats.totalStaff}</p>
-                  <p className="text-xs opacity-75 mt-2">Active employees</p>
-                </div>
-
-                <div className="bg-gradient-to-br from-red-500 to-rose-600 rounded-2xl p-6 shadow-xl text-white transform hover:scale-105 transition-all">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-medium opacity-90">Admins</h2>
-                    <div className="bg-white/20 p-3 rounded-xl">
-                      <Shield size={24} />
-                    </div>
-                  </div>
-                  <p className="text-4xl font-bold">{stats.totalAdmins}</p>
-                  <p className="text-xs opacity-75 mt-2">System administrators</p>
                 </div>
               </div>
 
@@ -369,16 +350,22 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {recentOrders.length === 0 ? (
-                        <tr>
-                          <td colSpan="8" className="text-center py-12 text-gray-400">
-                            <ShoppingBag size={48} className="mx-auto mb-4 opacity-30" />
-                            <p className="font-medium">No orders yet</p>
-                            <p className="text-sm mt-1">Create your first order to get started</p>
-                          </td>
-                        </tr>
-                      ) : (
-                        recentOrders.map((order) => (
+                    {recentOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan="8" className="text-center py-12 text-gray-400">
+                          <ShoppingBag size={48} className="mx-auto mb-4 opacity-30" />
+                          <p className="font-medium">No orders yet</p>
+                          <p className="text-sm mt-1">Create your first order to get started</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      recentOrders.map((order) => {
+                        // Combine date and time into a single Date object
+                        const pickupDateTime = order.pickup_date && order.pickup_time
+                          ? new Date(`${order.pickup_date}T${order.pickup_time}`)
+                          : null;
+
+                        return (
                           <tr key={order.id} className="hover:bg-blue-50/50 transition-colors">
                             <td className="py-4 px-6">
                               <div className="font-semibold text-gray-800">{order.name}</div>
@@ -391,8 +378,24 @@ export default function Dashboard() {
                             </td>
                             <td className="py-4 px-6 text-sm text-gray-700 font-medium">{order.quantity}</td>
                             <td className="py-4 px-6 text-sm text-gray-600">
-                              <div>{order.pickup_date}</div>
-                              <div className="text-xs text-gray-400">{order.pickup_time}</div>
+                              {pickupDateTime ? (
+                                <>
+                                  <div>{pickupDateTime.toLocaleDateString("en-PH", {
+                                    timeZone: "Asia/Manila",
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "2-digit"
+                                  })}</div>
+                                  <div className="text-xs text-gray-400">{pickupDateTime.toLocaleTimeString("en-PH", {
+                                    timeZone: "Asia/Manila",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: true
+                                  })}</div>
+                                </>
+                              ) : (
+                                "-"
+                              )}
                             </td>
                             <td className="py-4 px-6">
                               <span
@@ -406,7 +409,7 @@ export default function Dashboard() {
                               </span>
                             </td>
                             <td className="py-4 px-6 text-sm font-bold text-gray-800">
-                              ₱{order.total}
+                              ₱{Number(order.total || 0).toLocaleString()}
                             </td>
                             <td className="py-4 px-6">
                               <div className="flex gap-2">
@@ -425,9 +428,10 @@ export default function Dashboard() {
                               </div>
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
+                        );
+                      })
+                    )}
+                  </tbody>
                   </table>
                 </div>
               </div>
@@ -437,7 +441,7 @@ export default function Dashboard() {
           {/* EDIT / CREATE ORDER MODAL */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-8 w-full max-w-lg relative shadow-2xl transform animate-in">
+            <div className="bg-white rounded-2xl w-full max-w-lg relative shadow-2xl transform animate-in max-h-[90vh] overflow-y-auto p-8">
               <button
                 onClick={closeModal}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer text-2xl font-light"
@@ -562,6 +566,79 @@ export default function Dashboard() {
                   {editingId ? "Update Order" : "Create Order"}
                 </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Floating Chat Button */}
+        <div className="fixed bottom-6 right-6 z-50">
+          {!chatOpen && (
+            <button
+              onClick={() => setChatOpen(true)}
+              className="bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-4 rounded-full shadow-xl hover:scale-110 transition-transform cursor-pointer text-3xl"
+            >
+              💬
+            </button>
+          )}
+        </div>
+
+        {/* Chat Window */}
+        {chatOpen && (
+          <div className="fixed bottom-6 right-6 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border p-4 z-50 flex flex-col animate-slide-up">
+            
+            {/* Header */}
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+                🤖 Laundry Chatbot
+              </h2>
+              <button
+                onClick={() => setChatOpen(false)}
+                className="text-gray-500 hover:text-red-500 text-xl cursor-pointer"
+              >
+                ✖
+              </button>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto space-y-3 pb-2 px-1 max-h-80">
+              {messages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`p-3 text-sm rounded-xl shadow-sm max-w-[85%] ${
+                    msg.sender === "user"
+                      ? "ml-auto bg-blue-600 text-white rounded-br-none"
+                      : "bg-gray-100 text-gray-800 rounded-bl-none"
+                  }`}
+                >
+                  {msg.text}
+                </div>
+              ))}
+
+              {isTyping && (
+                <div className="bg-gray-200 text-gray-600 text-sm p-3 rounded-xl w-24 animate-pulse">
+                  typing...
+                </div>
+              )}
+
+              <div ref={chatEndRef}></div>
+            </div>
+
+            {/* Input */}
+            <div className="flex gap-2 mt-3">
+              <input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                className="flex-1 border border-gray-300 rounded-xl p-2 text-sm focus:ring-2 focus:ring-blue-500"
+                placeholder="Ask something..."
+              />
+
+              <button
+                onClick={handleSendMessage}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-xl transition cursor-pointer"
+              >
+                ➤
+              </button>
             </div>
           </div>
         )}
