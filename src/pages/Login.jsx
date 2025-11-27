@@ -31,7 +31,7 @@ export default function Login() {
       return;
     }
 
-    navigate("/dashboard"); 
+    navigate("/customer-dashboard"); 
   };
 
   return (

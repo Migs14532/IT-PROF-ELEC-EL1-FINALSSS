@@ -93,7 +93,7 @@ export default function Staff() {
     <div className="p-8 bg-gradient-to-br from-slate-50 via-blue-100 to-indigo-50 min-h-screen">
       {/* BACK BUTTON */}
       <button
-        onClick={() => navigate("/dashboard")}
+        onClick={() => navigate("/admin-dashboard")}
         className="mb-6 p-3 hover:bg-white/60 rounded-xl transition-all duration-200 cursor-pointer inline-flex items-center gap-2 bg-white/40 backdrop-blur-sm shadow-sm"
       >
         <ChevronLeft className="w-5 h-5 text-gray-700" />

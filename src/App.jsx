@@ -4,10 +4,10 @@ import { Toaster } from "react-hot-toast";
 import Loading from "./pages/Landing";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
+import CustomerDashboard from "./pages/CustomerDashboard";
 import Customer from "./pages/Customer";
 import Staff from "./pages/Staff";
-import Admin from "./pages/Admin";
+import AdminDashboard from "./pages/AdminDashboard";
 
 export default function App() {
   return (
@@ -22,10 +22,10 @@ export default function App() {
         <Route path="/login" element={<Login />} />
 
         {/* Main App Screens */}
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/customer-dashboard" element={<CustomerDashboard />} />
         <Route path="/customer" element={<Customer />} />
         <Route path="/staff" element={<Staff />} />
-        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />
       </Routes>
     </Router>
   );
